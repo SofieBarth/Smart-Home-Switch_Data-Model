@@ -1,0 +1,1 @@
+# Smart-Home-Switch_Data-Model
