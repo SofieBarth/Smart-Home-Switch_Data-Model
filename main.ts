@@ -1,67 +1,142 @@
-type LEDcolor = "Red" | "Green" | "Blue" | "White";
+// Possible colors for the integrated rocker LED
+type LEDColor = "red" | "green" | "blue" | "white";
 
+/**
+ * Base LED configuration valid for all switch functions.
+ * Note: alwaysOFF does not allow a color to be specified.
+ */
 type LEDConfigBasic =
     |{mode: "alwaysOFF"}
-    |{mode: "alwaysON"; color: LEDcolor}
-    |{mode: "momentarySwitch"; color: LEDcolor}
+    |{mode: "alwaysON"; color: LEDColor}
+    |{mode: "momentarySwitch"; color: LEDColor}
 
+/**
+ * Extended LED mode only available for switch and dim functions.
+ * Mirrors the controlled light's state (on = LED on, off = LED off).
+ */
 type LEDConfigExtra =
-    |{mode: "alwaysOFF"}
-    |{mode: "alwaysON"; color: LEDcolor}
-    |{mode: "momentarySwitch"; color: LEDcolor}
-    |{mode: "onWhenActive"; color: LEDcolor}
+    | LEDConfigBasic
+    | { mode: "onIfActive"; color: LEDColor};
 
+/** Rocker layout for on/off functions */
 type RockerLayout_ON_OFF = "topON_bottomOFF" | "topOFF_bottomON";
 
-type RockerLayout_UP_DOWN = "topUP_bottomDOWN" | "topDOWN_bottomUp";
+/** Rocker layout for up/down functions of shutter */
+type RockerLayout_UP_DOWN = "topUP_bottomDOWN" | "topDOWN_bottomUP";
 
-type LongPressThreshold = 250 | 500 | 750 | 1000 | 1500;
+/** Duration in ms after which a press is considered a long press */
+type LongPressThresholdMS = 250 | 500 | 750 | 1000 | 1500;
 
+/**
+ * Configuration for the simple toggle function.
+ * toggleAtPress: both rocker sides toggle the same output.
+ * toggleAtSwitch: top and bottom rocker have dedicated on/off roles.
+ */
 type SwitchConfig =
-    |{mode: "ToggleAtPress"}
-    |{mode: "ToggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF}
+    |{mode: "toggleAtPress"}
+    |{mode: "toggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF}
 
+/**
+ * Configuration for the dim function.
+ * Short press toggles on/off, long press dims the light.
+ */
 type DimmConfig =
-    |{mode: "ToggleAtPress"; dimThreshold: LongPressThreshold}
-    |{mode: "ToggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF; dimThreshold: LongPressThreshold}
+    |{mode: "toggleAtPress"; dimThresholdMS: LongPressThresholdMS}
+    |{mode: "toggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF; dimThresholdMS: LongPressThresholdMS}
 
+/** Configuration for shutter control */
 interface ShutterConfig {
-    RockerLayout: RockerLayout_UP_DOWN;
-    LongPressTreshold: LongPressThreshold;
+    rockerLayout: RockerLayout_UP_DOWN;
+    longPressThreshold: LongPressThresholdMS;
 }
 
-type RockerConfig =
-    |{mode: "Schalten"; function: SwitchConfig; led: LEDConfigExtra}
-    |{mode: "Dimmen"; function: DimmConfig; led: LEDConfigExtra}
-    |{mode: "Rolladen"; function: ShutterConfig; led: LEDConfigBasic}
+/**
+ * Assigns a function to a single rocker.
+ * shutterFunction is restricted to LEDConfigBasic since onIfActive
+ * is not meaningful without an active state to mirror.
+ */
+type RockerAssignment =
+    |{mode: "switchFunction"; function: SwitchConfig; led: LEDConfigExtra}
+    |{mode: "dimFunction"; function: DimmConfig; led: LEDConfigExtra}
+    |{mode: "shutterFunction"; function: ShutterConfig; led: LEDConfigBasic}
 
-
+/** Full configuration for a smart switch with two independently configurable rockers */
 interface SmartSwitchConfig {
-    iD: string;
-    RockerLeft: RockerConfig;
-    RockerRight: RockerConfig;
+    id: string;
+    rockerLeft: RockerAssignment;
+    rockerRight: RockerAssignment;
 }
 
-const FirstSwitch: SmartSwitchConfig = {
-    iD: "FirstSwitch",
-    RockerLeft: {
-        mode: "Schalten",
+// Example: left rocker toggles a light, right rocker controls a shutter
+const firstSwitch: SmartSwitchConfig = {
+    id: "firstSwitch",
+    rockerLeft: {
+        mode: "switchFunction",
         function: {
-            mode: "ToggleAtSwitch",
+            mode: "toggleAtSwitch",
             rockerUsage: "topOFF_bottomON"
         },
         led: {
             mode: "alwaysOFF"
         }
     },
-    RockerRight: {
-        mode: "Schalten",
+    rockerRight: {
+        mode: "shutterFunction",
         function: {
-            mode: "ToggleAtSwitch",
-            rockerUsage: "topOFF_bottomON"
+            rockerLayout: "topDOWN_bottomUP",
+            longPressThreshold: 500
+        },
+        led: {
+            mode: "alwaysON", color: "blue"
+        }
+    }
+}
+const secondSwitch: SmartSwitchConfig = {
+    id: "secondSwitch",
+    rockerLeft: {
+        mode: "dimFunction",
+        function: {
+            mode: "toggleAtPress",
+            dimThresholdMS: 750
         },
         led: {
             mode: "alwaysOFF"
+        }
+    },
+    rockerRight: {
+        mode: "switchFunction",
+        function: {
+            mode: "toggleAtSwitch",
+            rockerUsage: "topON_bottomOFF"
+        },
+        led: {
+            mode: "onIfActive",
+            color: "green"
+        }
+    }
+}
+
+const thirdSwitch: SmartSwitchConfig = {
+    id: "failConfig",
+    rockerLeft: {
+        mode: "dimFunction",
+        function: {
+            mode: "toggleAtPress",
+            dimThresholdMS: 750
+        },
+        led: {
+            mode: "alwaysOFF",
+            color: "white"
+        }
+    },
+    rockerRight: {
+        mode: "switchFunction",
+        function: {
+            mode: "toggleAtSwitch",
+            rockerUsage: "topON_bottomON"
+        },
+        led: {
+            mode: "onIfActive"
         }
     }
 }
