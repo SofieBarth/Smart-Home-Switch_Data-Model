@@ -18,6 +18,19 @@ type LEDConfigExtra =
     | LEDConfigBasic
     | { mode: "onIfActive"; color: LEDColor};
 
+/**
+ * Defines the dimming behavior during a long press.
+ * pressBrighterThenDimmer: each long press cycles brighter first, then dimmer.
+ * rockerSideAssignment: top and bottom rocker have dedicated brighter/dimmer roles.
+ */
+type DimSettingsLongPress =
+    | {mode: "pressToDimmerThanBrighter"}
+    | {mode: "rockerSideAssignment", rockerLayout: RockerLayout_BIGHTER_DIMMER}
+
+
+/** Rocker layout for brighter/dimmer functions */
+type RockerLayout_BIGHTER_DIMMER = "topBRIGHTER_bottomDiMMER" | "topDIMMER_bottomBRIGHTER";
+
 /** Rocker layout for on/off functions */
 type RockerLayout_ON_OFF = "topON_bottomOFF" | "topOFF_bottomON";
 
@@ -34,19 +47,20 @@ type LongPressThresholdMS = 250 | 500 | 750 | 1000 | 1500;
  */
 type SwitchConfig =
     |{mode: "toggleAtPress"}
-    |{mode: "toggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF}
+    |{mode: "rockerSideAssignment"; rockerUsage: RockerLayout_ON_OFF}
 
 /**
  * Configuration for the dim function.
  * Short press toggles on/off, long press dims the light.
+ * dimSettings defines whether dimming direction is fixed or rocker-side dependent.
  */
-type DimmConfig =
-    |{mode: "toggleAtPress"; dimThresholdMS: LongPressThresholdMS}
-    |{mode: "toggleAtSwitch"; rockerUsage: RockerLayout_ON_OFF; dimThresholdMS: LongPressThresholdMS}
+type DimConfig =
+    |{mode: "toggleAtPress"; dimThresholdMS: LongPressThresholdMS; dimSettings: DimSettingsLongPress;}
+    |{mode: "rockerSideAssignment"; rockerUsage: RockerLayout_ON_OFF; dimThresholdMS: LongPressThresholdMS; dimSettings: DimSettingsLongPress}
 
 /** Configuration for shutter control */
-interface ShutterConfig {
-    rockerLayout: RockerLayout_UP_DOWN;
+type ShutterConfig = {
+    rockerSideAssignment_UP_DOWN: RockerLayout_UP_DOWN;
     longPressThreshold: LongPressThresholdMS;
 }
 
@@ -57,23 +71,23 @@ interface ShutterConfig {
  */
 type RockerAssignment =
     |{mode: "switchFunction"; function: SwitchConfig; led: LEDConfigExtra}
-    |{mode: "dimFunction"; function: DimmConfig; led: LEDConfigExtra}
+    |{mode: "dimFunction"; function: DimConfig; led: LEDConfigExtra}
     |{mode: "shutterFunction"; function: ShutterConfig; led: LEDConfigBasic}
 
 /** Full configuration for a smart switch with two independently configurable rockers */
-interface SmartSwitchConfig {
+type SmartSwitchConfig = {
     id: string;
     rockerLeft: RockerAssignment;
     rockerRight: RockerAssignment;
 }
 
-// Example: left rocker toggles a light, right rocker controls a shutter
+// Example: left rocker for switch function, right rocker controls a shutter
 const firstSwitch: SmartSwitchConfig = {
     id: "firstSwitch",
     rockerLeft: {
         mode: "switchFunction",
         function: {
-            mode: "toggleAtSwitch",
+            mode: "rockerSideAssignment",
             rockerUsage: "topOFF_bottomON"
         },
         led: {
@@ -83,21 +97,26 @@ const firstSwitch: SmartSwitchConfig = {
     rockerRight: {
         mode: "shutterFunction",
         function: {
-            rockerLayout: "topDOWN_bottomUP",
-            longPressThreshold: 500
+            rockerSideAssignment_UP_DOWN: "topDOWN_bottomUP",
+            longPressThreshold: 1000,
         },
         led: {
             mode: "alwaysON", color: "blue"
         }
     }
 }
+
+// Example: left rocker controls a light with dim function, right rocker for switch function
 const secondSwitch: SmartSwitchConfig = {
     id: "secondSwitch",
     rockerLeft: {
         mode: "dimFunction",
         function: {
             mode: "toggleAtPress",
-            dimThresholdMS: 750
+            dimThresholdMS: 750,
+            dimSettings: {
+                mode: "rockerSideAssignment", rockerLayout: "topBRIGHTER_bottomDiMMER",
+            }
         },
         led: {
             mode: "alwaysOFF"
@@ -106,7 +125,7 @@ const secondSwitch: SmartSwitchConfig = {
     rockerRight: {
         mode: "switchFunction",
         function: {
-            mode: "toggleAtSwitch",
+            mode: "rockerSideAssignment",
             rockerUsage: "topON_bottomOFF"
         },
         led: {
@@ -115,7 +134,9 @@ const secondSwitch: SmartSwitchConfig = {
         }
     }
 }
-
+/*
+// Example: left rocker controls a light with dim function, right rocker for switch function
+// False configurations added
 const thirdSwitch: SmartSwitchConfig = {
     id: "failConfig",
     rockerLeft: {
@@ -132,7 +153,7 @@ const thirdSwitch: SmartSwitchConfig = {
     rockerRight: {
         mode: "switchFunction",
         function: {
-            mode: "toggleAtSwitch",
+            mode: "rockerSideAssignment",
             rockerUsage: "topON_bottomON"
         },
         led: {
@@ -140,3 +161,4 @@ const thirdSwitch: SmartSwitchConfig = {
         }
     }
 }
+*/
